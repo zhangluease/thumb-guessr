@@ -10,3 +10,4 @@ window.QUESTIONS = [
   { title: "这支眼妆居然只用了三色", views: 3650000, label: "365 万", imagePosition: "50% 100%", choices: ["36.5 万", "365 万", "3650 万"] },
   { title: "最后一秒过弯，太惊险了", views: 78100000, label: "7810 万", imagePosition: "100% 100%", choices: ["781 万", "7810 万", "7.81 亿"] }
 ];
+
