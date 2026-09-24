@@ -1,5 +1,6 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import mysql from "mysql2/promise";
@@ -8,6 +9,11 @@ const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 const distRoot = resolve(projectRoot, "dist");
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 4173);
+const numberFromEnv = (name, fallback, minimum, maximum) => {
+  const parsed = Number(process.env[name]);
+  return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, Math.floor(parsed))) : fallback;
+};
+const onlineActiveMinutes = numberFromEnv("ONLINE_ACTIVE_MINUTES", 5, 1, 60);
 let dbPool;
 
 const contentTypes = {
@@ -45,6 +51,76 @@ function sendJson(response, statusCode, payload) {
     "Content-Length": Buffer.byteLength(body)
   });
   response.end(body);
+}
+
+function sendMethodNotAllowed(response, allow) {
+  response.writeHead(405, { Allow: allow });
+  response.end("Method Not Allowed");
+}
+
+function readJsonBody(request, limit = 2048) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+      if (Buffer.byteLength(body) > limit) {
+        reject(new Error("请求内容过大"));
+        request.destroy();
+      }
+    });
+    request.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error("JSON 格式无效"));
+      }
+    });
+    request.on("error", reject);
+  });
+}
+
+function isVisitorId(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ""));
+}
+
+function safeTokenEqual(received, expected) {
+  const receivedBuffer = Buffer.from(received || "");
+  const expectedBuffer = Buffer.from(expected || "");
+  return receivedBuffer.length === expectedBuffer.length
+    && receivedBuffer.length > 0
+    && timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
+function authorizeStats(request, response) {
+  const expected = String(process.env.STATS_ADMIN_TOKEN || "").trim();
+  if (!expected) {
+    sendJson(response, 503, { error: "统计查询尚未配置 STATS_ADMIN_TOKEN" });
+    return false;
+  }
+  const authorization = String(request.headers.authorization || "");
+  const received = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!safeTokenEqual(received, expected)) {
+    response.setHeader("WWW-Authenticate", "Bearer");
+    sendJson(response, 401, { error: "统计查询认证失败" });
+    return false;
+  }
+  return true;
+}
+
+function formatLocalDate(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function parseStatsDate(value, endOfRange) {
+  const input = String(value || "").trim();
+  if (!input) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    return `${input} ${endOfRange ? "23:59:59.999" : "00:00:00.000"}`;
+  }
+  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/.exec(input);
+  return match ? `${match[1]} ${match[2]}:${match[3] || "00"}` : null;
 }
 
 function parseYouTubeVideoId(value) {
@@ -190,6 +266,117 @@ async function handleQuizQuestions(response, requestUrl) {
   });
 }
 
+async function getPresenceSnapshot() {
+  const [rows] = await getDbPool().query(
+    `SELECT COUNT(DISTINCT visitor_id) AS activeUsers
+       FROM visitor_activity_5m
+      WHERE last_seen_at >= DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL ${onlineActiveMinutes} MINUTE)`
+  );
+  const activeUsers = Number(rows[0]?.activeUsers || 0);
+  return {
+    activeUsers,
+    displayCount: activeUsers,
+    activeWindowSeconds: onlineActiveMinutes * 60
+  };
+}
+
+async function handlePresenceHeartbeat(request, response) {
+  let payload;
+  try {
+    payload = await readJsonBody(request);
+  } catch (error) {
+    sendJson(response, 400, { error: error.message });
+    return;
+  }
+  const visitorId = String(payload.visitorId || "").trim().toLowerCase();
+  if (!isVisitorId(visitorId)) {
+    sendJson(response, 400, { error: "visitorId 格式无效" });
+    return;
+  }
+
+  try {
+    await getDbPool().execute(
+      `INSERT INTO visitor_activity_5m
+         (visitor_id, bucket_start, first_seen_at, last_seen_at, activity_count)
+       VALUES (
+         ?,
+         FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3)) / 300) * 300),
+         CURRENT_TIMESTAMP(3),
+         CURRENT_TIMESTAMP(3),
+         1
+       )
+       ON DUPLICATE KEY UPDATE
+         last_seen_at = CURRENT_TIMESTAMP(3),
+         activity_count = activity_count + 1`,
+      [visitorId]
+    );
+    sendJson(response, 200, await getPresenceSnapshot());
+  } catch (error) {
+    console.error(`活跃用户写入失败: ${error.message}`);
+    sendJson(response, 503, { error: "活跃用户统计暂不可用" });
+  }
+}
+
+async function handlePresence(response) {
+  try {
+    sendJson(response, 200, await getPresenceSnapshot());
+  } catch (error) {
+    console.error(`在线人数查询失败: ${error.message}`);
+    sendJson(response, 503, { error: "在线人数暂不可用", displayCount: 0 });
+  }
+}
+
+async function handleUvStats(request, requestUrl, response) {
+  if (!authorizeStats(request, response)) return;
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const from = requestUrl.searchParams.has("from")
+    ? parseStatsDate(requestUrl.searchParams.get("from"), false)
+    : formatLocalDate(sevenDaysAgo);
+  const to = requestUrl.searchParams.has("to")
+    ? parseStatsDate(requestUrl.searchParams.get("to"), true)
+    : formatLocalDate(now);
+  const bucket = requestUrl.searchParams.get("bucket") || "day";
+  if (!from || !to || from > to || !["hour", "day"].includes(bucket)) {
+    sendJson(response, 400, { error: "请使用有效的 from、to 和 bucket=hour|day 参数" });
+    return;
+  }
+
+  const periodExpression = bucket === "hour"
+    ? "DATE_FORMAT(bucket_start, '%Y-%m-%d %H:00:00')"
+    : "DATE_FORMAT(bucket_start, '%Y-%m-%d')";
+  try {
+    const [[totalRows], [seriesRows]] = await Promise.all([
+      getDbPool().query(
+        `SELECT COUNT(DISTINCT visitor_id) AS uv
+           FROM visitor_activity_5m
+          WHERE first_seen_at <= ? AND last_seen_at >= ?`,
+        [to, from]
+      ),
+      getDbPool().query(
+        `SELECT ${periodExpression} AS period,
+                COUNT(DISTINCT visitor_id) AS uv
+           FROM visitor_activity_5m
+          WHERE first_seen_at <= ? AND last_seen_at >= ?
+          GROUP BY period
+          ORDER BY period`,
+        [to, from]
+      )
+    ]);
+    sendJson(response, 200, {
+      from,
+      to,
+      bucket,
+      timezone: "Asia/Shanghai",
+      totalUv: Number(totalRows[0]?.uv || 0),
+      series: seriesRows.map((row) => ({ period: row.period, uv: Number(row.uv) }))
+    });
+  } catch (error) {
+    console.error(`UV 统计查询失败: ${error.message}`);
+    sendJson(response, 503, { error: "UV 统计暂不可用" });
+  }
+}
+
 function resolveRequestPath(requestUrl) {
   const pathname = decodeURIComponent(new URL(requestUrl, "http://localhost").pathname);
   const relativePath = pathname === "/" ? "index.html" : normalize(pathname).replace(/^[/\\]+/, "");
@@ -212,18 +399,55 @@ if (!existsSync(join(distRoot, "index.html"))) {
 }
 
 const server = createServer((request, response) => {
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    response.writeHead(405, { Allow: "GET, HEAD" });
-    response.end("Method Not Allowed");
-    return;
-  }
-
   let requestUrl;
   try {
     requestUrl = new URL(request.url || "/", "http://localhost");
   } catch {
     response.writeHead(400);
     response.end("Bad Request");
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/presence/heartbeat") {
+    if (request.method !== "POST") {
+      sendMethodNotAllowed(response, "POST");
+      return;
+    }
+    handlePresenceHeartbeat(request, response).catch(() => {
+      if (!response.headersSent) sendJson(response, 500, { error: "活跃用户处理失败" });
+    });
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/presence") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      sendMethodNotAllowed(response, "GET, HEAD");
+      return;
+    }
+    if (request.method === "HEAD") {
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end();
+      return;
+    }
+    handlePresence(response).catch(() => {
+      if (!response.headersSent) sendJson(response, 500, { error: "在线人数处理失败" });
+    });
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/stats/uv") {
+    if (request.method !== "GET") {
+      sendMethodNotAllowed(response, "GET");
+      return;
+    }
+    handleUvStats(request, requestUrl, response).catch(() => {
+      if (!response.headersSent) sendJson(response, 500, { error: "UV 统计处理失败" });
+    });
+    return;
+  }
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    sendMethodNotAllowed(response, "GET, HEAD");
     return;
   }
 

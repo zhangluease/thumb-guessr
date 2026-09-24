@@ -95,6 +95,7 @@ thumb-guessr/
 ├── src/                   # 消费端游戏前端
 │   ├── main.js          # 应用入口与依赖组装
 │   ├── game.js          # 游戏状态、计分和交互
+│   ├── presence.js      # 匿名 UV 与活跃人数上报
 │   ├── question-history.js # 最近 200 题去重记录
 │   ├── questions.js     # 题库数据
 │   └── styles.css       # 响应式样式
@@ -114,6 +115,26 @@ thumb-guessr/
 ```
 
 游戏过程状态只保存在浏览器本地：最高连续答对数和最近 200 个已展示的视频 ID 使用 `localStorage`，用于减少重复题目。消费端通过后端读取 MySQL 中已同步的视频数据。
+
+## UV 与活跃人数统计
+
+前端会在浏览器生成匿名 UUID 并保存在 `localStorage`，不采集姓名、账号或 IP。首次打开页面以及点击、触摸、键盘和滚动行为会更新最近活跃时间；连续 5 分钟没有行为后，该访客不再计入活跃人数。
+
+页面展示人数等于最近 5 分钟活跃 UV。统计数据按 5 分钟活动桶保存，先执行迁移文件 [`db/migrations/002_visitor_analytics.sql`](./db/migrations/002_visitor_analytics.sql)。ECS 的 `/app/thumb-guessr/.env` 需要增加：
+
+```dotenv
+ONLINE_ACTIVE_MINUTES=5
+STATS_ADMIN_TOKEN=请填写足够长的随机字符串
+```
+
+按天查询 UV：
+
+```bash
+curl -H "Authorization: Bearer $STATS_ADMIN_TOKEN" \
+  'https://thumb.hfct.top/api/stats/uv?from=2026-09-01&to=2026-09-30&bucket=day'
+```
+
+按小时查询时将 `bucket` 改为 `hour`。接口返回时间范围内的去重 UV 总数和分时序列，时间口径为 `Asia/Shanghai`。UV 是浏览器级统计，清理浏览器数据或更换设备后会被视为新的访客。
 
 ## 从 YouTube 同步真实视频数据
 

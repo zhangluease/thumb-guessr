@@ -1,5 +1,6 @@
 import "./styles.css";
 import { createGame } from "./game.js";
+import { setupFestivalPresence } from "./presence.js";
 import { questions } from "./questions.js";
 import { getQuestionId, readRecentQuestionIds } from "./question-history.js";
 
@@ -65,4 +66,5 @@ async function loadMoreQuestions(excludeIds) {
   return [];
 }
 
+setupFestivalPresence(document.getElementById("festival-count"));
 loadQuestions().then((initialQuestions) => createGame(initialQuestions, { loadMoreQuestions }));
