@@ -19,12 +19,14 @@
           <span><b id="streak">0</b> 连对</span>
           <span class="score-dot" aria-hidden="true"></span>
           <span><b id="score">0</b> 分</span>
+          <span class="score-dot" aria-hidden="true"></span>
+          <span class="lives" id="lives" aria-label="剩余 3 条生命">♥♥♥</span>
         </div>
       </header>
 
       <section class="game" aria-labelledby="question-heading">
         <div class="round-info">
-          <p id="question-heading">第 <span id="round">01</span> 题 <span class="separator">/</span> 只看封面</p>
+          <p id="question-heading">第 <span id="round">01</span>/10 题 <span class="separator">/</span> 只看封面</p>
           <p class="best">最高连对 <strong id="best">0</strong></p>
         </div>
 
@@ -47,6 +49,17 @@
             <span id="result-detail"></span>
           </div>
           <button class="next-button" id="next-button" type="button">下一题 <span>→</span></button>
+        </section>
+        <section class="session-result" id="session-result" hidden aria-live="polite">
+          <p class="session-kicker">本局结束</p>
+          <h2 id="session-title">漂亮！</h2>
+          <p class="session-summary" id="session-summary"></p>
+          <div class="session-stats">
+            <div><strong id="final-score">0</strong><span>本局得分</span></div>
+            <div><strong id="final-correct">0/10</strong><span>答对题数</span></div>
+            <div><strong id="final-streak">0</strong><span>最高连对</span></div>
+          </div>
+          <button class="play-again" id="play-again" type="button">再来一局 <span>↗</span></button>
         </section>
       </section>
 
