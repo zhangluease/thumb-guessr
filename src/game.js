@@ -1,5 +1,8 @@
-(function () {
-  const questions = window.QUESTIONS;
+export function createGame(questions) {
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw new Error("题库不能为空");
+  }
+
   const el = (id) => document.getElementById(id);
   const state = { index: 0, score: 0, streak: 0, best: Number(localStorage.getItem("cover-guess-best") || 0), answered: false };
   const elements = {
@@ -10,7 +13,12 @@
   };
 
   function shuffled(list) {
-    return [...list].sort(() => Math.random() - 0.5);
+    const result = [...list];
+    for (let index = result.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+    }
+    return result;
   }
 
   function renderQuestion() {
@@ -19,6 +27,7 @@
     elements.round.textContent = String(state.index + 1).padStart(2, "0");
     elements.image.style.backgroundPosition = question.imagePosition;
     elements.reveal.classList.remove("is-visible");
+    elements.reveal.setAttribute("aria-hidden", "true");
     elements.cover.classList.remove("is-revealed", "is-correct", "is-wrong");
     elements.result.hidden = true;
     elements.prompt.textContent = "这条视频的播放量会是多少？";
@@ -57,6 +66,7 @@
     elements.videoTitle.textContent = question.title;
     elements.cover.classList.add("is-revealed", isCorrect ? "is-correct" : "is-wrong");
     elements.reveal.classList.add("is-visible");
+    elements.reveal.setAttribute("aria-hidden", "false");
     elements.prompt.textContent = isCorrect ? "直觉很准！" : "差一点，下一题继续。";
     elements.resultTitle.textContent = isCorrect ? `答对了 +${100 + Math.max(0, state.streak - 1) * 25}` : "答案揭晓";
     elements.resultDetail.textContent = isCorrect ? `已连续答对 ${state.streak} 题` : `真实播放量是 ${question.label}`;
@@ -71,4 +81,4 @@
   });
   elements.best.textContent = state.best;
   renderQuestion();
-})();
+}
