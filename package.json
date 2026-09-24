@@ -9,12 +9,16 @@
     "build": "vite build",
     "start": "node server.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check server.mjs && node --check src/main.js && node --check src/game.js && node --check src/questions.js"
+    "check": "node --check server.mjs && node --check scripts/youtube-sync.mjs && node --check src/main.js && node --check src/game.js && node --check src/questions.js",
+    "youtube:sync": "node scripts/youtube-sync.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.7"
   },
   "engines": {
     "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.4"
   }
 }

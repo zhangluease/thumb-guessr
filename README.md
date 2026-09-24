@@ -106,7 +106,33 @@ thumb-guessr/
 └── package.json         # 开发、检查、构建和启动命令
 ```
 
-页面状态只保存在浏览器本地：最高连续答对数使用 `localStorage`，没有后端和数据库依赖。
+游戏过程状态只保存在浏览器本地：最高连续答对数使用 `localStorage`。YouTube 测试入口通过后端读取 MySQL 中已同步的视频数据。
+
+## 从 YouTube 同步真实视频数据
+
+ECS 只负责网页和数据库访问，YouTube Data API 请求应在能访问 YouTube 的本地机器执行。同步脚本会拉取标题、封面、播放量和发布时间，并写入 MySQL 的 `videos` 与 `video_stat_snapshots` 表。
+
+先在项目根目录创建本地配置文件 `.env.local`（该文件不会提交）：
+
+```dotenv
+YOUTUBE_API_KEY=你的本地 YouTube Data API Key
+DB_HOST=124.72.50.154
+DB_PORT=8736
+DB_NAME=thumb_guessr
+DB_USER=root
+DB_PASSWORD=你的数据库密码
+```
+
+然后传入一个或多个 YouTube 视频链接/ID：
+
+```bash
+npm ci
+npm run youtube:sync -- \
+  'https://www.youtube.com/watch?v=dQw4w9WgXcQ' \
+  'https://youtu.be/9bZkp7q19f0'
+```
+
+同步成功后，打开 [`https://thumb.hfct.top/youtube-test.html`](https://thumb.hfct.top/youtube-test.html)，输入相同的两个链接即可验证 ECS 数据库中的封面、标题和播放量。页面不会把 API Key 暴露给浏览器。
 
 ## 修改题库
 

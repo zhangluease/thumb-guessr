@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#090b18" />
+    <title>YouTube 数据测试 · 封面猜播放</title>
+  </head>
+  <body>
+    <main class="youtube-test-shell">
+      <header class="test-header">
+        <a class="back-link" href="/">← 返回游戏</a>
+        <p class="eyebrow">THUMB GUESSR / DATA LAB</p>
+        <h1>YouTube 数据测试</h1>
+        <p class="intro">先在本地运行同步命令，再粘贴最多 2 个 YouTube 视频链接或 ID，验证数据库中的封面、标题和播放量。</p>
+      </header>
+
+      <form id="youtube-form" class="test-form">
+        <label>
+          <span>视频 1</span>
+          <input id="video-one" name="video-one" autocomplete="off" placeholder="例如：dQw4w9WgXcQ 或完整链接" required />
+        </label>
+        <label>
+          <span>视频 2</span>
+          <input id="video-two" name="video-two" autocomplete="off" placeholder="再粘贴一个视频链接或 ID" required />
+        </label>
+        <button type="submit">拉取 YouTube 数据</button>
+      </form>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <section id="results" class="results" aria-live="polite"></section>
+    </main>
+    <script type="module" src="/src/youtube-test.js"></script>
+  </body>
+</html>
