@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import { ProxyAgent } from "undici";
 
 export class SyncInputError extends Error {
   constructor(message) {
@@ -65,13 +66,18 @@ export async function syncVideos(inputs, config = process.env) {
   apiUrl.searchParams.set("key", apiKey);
 
   let response;
+  const dispatcher = config.YOUTUBE_PROXY_URL ? new ProxyAgent(String(config.YOUTUBE_PROXY_URL).trim()) : undefined;
   try {
-    response = await fetch(apiUrl, { headers: { Accept: "application/json" } });
+    response = await fetch(apiUrl, {
+      headers: { Accept: "application/json" },
+      ...(dispatcher ? { dispatcher } : {})
+    });
   } catch (error) {
     const cause = error?.cause?.code || error?.cause?.message || error.message;
-    throw new Error(`无法连接 YouTube Data API（${cause}）。请确认本机网络/VPN 可以访问 www.googleapis.com；命令参数请使用纯 URL 或视频 ID。`);
+    throw new Error(`无法连接 YouTube Data API（${cause}）。请确认本机网络/VPN 可以访问 www.googleapis.com；如果本机代理端口是 7890，可在 .env.local 设置 YOUTUBE_PROXY_URL=http://127.0.0.1:7890；命令参数请使用纯 URL 或视频 ID。`);
   }
   const payload = await response.json().catch(() => ({}));
+  if (dispatcher) await dispatcher.close();
   if (!response.ok) {
     const reason = payload?.error?.errors?.[0]?.reason ? ` (${payload.error.errors[0].reason})` : "";
     throw new Error(`${payload?.error?.message || "YouTube Data API 请求失败"}${reason}`);

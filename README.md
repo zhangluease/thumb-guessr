@@ -124,6 +124,7 @@ thumb-guessr/
 
 ```dotenv
 YOUTUBE_API_KEY=你的本地 YouTube Data API Key
+YOUTUBE_PROXY_URL=http://127.0.0.1:7890  # 如果本机需要代理访问 Google，可填写；否则留空
 DB_HOST=124.72.50.154
 DB_PORT=8736
 DB_NAME=thumb_guessr
