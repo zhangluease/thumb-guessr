@@ -48,6 +48,21 @@ function required(config, name) {
   return value;
 }
 
+async function mapConcurrent(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
 export async function syncVideos(inputs, config = process.env) {
   const values = inputs.map((value) => String(value || "").trim()).filter(Boolean);
   if (!values.length || values.length > 50) {
@@ -107,18 +122,25 @@ export async function syncVideos(inputs, config = process.env) {
   const found = new Map();
   let inTransaction = false;
   try {
-    await db.beginTransaction();
-    inTransaction = true;
-    for (const item of payload.items || []) {
+    const items = (payload.items || []).map((item) => {
       const snippet = item.snippet || {};
       const statistics = item.statistics || {};
       const thumbnail = snippet.thumbnails?.maxres?.url
         || snippet.thumbnails?.high?.url
         || snippet.thumbnails?.medium?.url
         || snippet.thumbnails?.default?.url;
-      if (!thumbnail || !snippet.title || statistics.viewCount === undefined) continue;
+      if (!thumbnail || !snippet.title || statistics.viewCount === undefined) return null;
+      return { item, snippet, statistics, thumbnail };
+    }).filter(Boolean);
+    const storedThumbnails = oss
+      ? await mapConcurrent(items, 6, ({ item, thumbnail }) => oss.uploadThumbnail(item.id, thumbnail))
+      : items.map(({ thumbnail }) => thumbnail);
 
-      const storedThumbnail = oss ? await oss.uploadThumbnail(item.id, thumbnail) : thumbnail;
+    await db.beginTransaction();
+    inTransaction = true;
+    for (const [index, entry] of items.entries()) {
+      const { item, snippet, statistics } = entry;
+      const storedThumbnail = storedThumbnails[index];
 
       const [result] = await db.execute(
         `INSERT INTO videos
