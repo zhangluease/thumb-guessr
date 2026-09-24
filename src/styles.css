@@ -35,10 +35,10 @@ button { font: inherit; }
 .cover-tag { position: absolute; z-index: 2; top: 14px; left: 14px; padding: 7px 10px; border: 1px solid #fff4; border-radius: 999px; background: #080a15aa; backdrop-filter: blur(8px); font-size: .7rem; font-weight: 800; letter-spacing: .08em; }
 .reveal-card { position: absolute; z-index: 3; right: 14px; bottom: 14px; left: 14px; padding: 17px 18px; border: 1px solid #ffffff2d; border-radius: 20px; background: #111321da; backdrop-filter: blur(12px); opacity: 0; transform: translateY(14px); transition: .35s ease; }
 .reveal-card.is-visible { opacity: 1; transform: translateY(0); }
-.reveal-label, .video-title { margin: 0; color: #c6c9dc; font-size: .73rem; }
+.reveal-label { margin: 0; color: #c6c9dc; font-size: .73rem; }
 .actual-count { margin: 2px 0; color: white; font-size: clamp(2rem, 9vw, 2.9rem); line-height: 1.05; font-weight: 900; letter-spacing: -.07em; }
-.video-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prompt { margin: 21px 2px 13px; font-size: 1.1rem; font-weight: 750; letter-spacing: -.025em; }
+.question-title { display: -webkit-box; overflow: hidden; margin: 15px 2px 0; color: #f5f7ff; font-size: clamp(1rem, 4.3vw, 1.2rem); font-weight: 800; line-height: 1.4; letter-spacing: -.025em; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.prompt { margin: 7px 2px 13px; color: var(--muted); font-size: .95rem; font-weight: 650; letter-spacing: -.015em; }
 .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
 .choice { min-height: 72px; padding: 9px 5px; border: 1px solid #ffffff1a; border-radius: 17px; color: var(--ink); background: linear-gradient(145deg, #20233a, #151727); cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease; font-size: clamp(.92rem, 4vw, 1.05rem); font-weight: 800; letter-spacing: -.04em; }
 .choice:active { transform: scale(.96); }

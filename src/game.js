@@ -8,7 +8,7 @@ export function createGame(questions) {
   const elements = {
     round: el("round"), score: el("score"), streak: el("streak"), best: el("best"), choices: el("choices"),
     cover: el("cover-card"), image: el("cover-image"), reveal: el("reveal-card"), actual: el("actual-count"),
-    videoTitle: el("video-title"), result: el("result"), resultTitle: el("result-title"), resultDetail: el("result-detail"),
+    questionTitle: el("question-title"), result: el("result"), resultTitle: el("result-title"), resultDetail: el("result-detail"),
     next: el("next-button"), prompt: el("prompt")
   };
 
@@ -33,6 +33,7 @@ export function createGame(questions) {
     elements.image.style.backgroundSize = hasRemoteImage ? "contain" : "300% 200%";
     elements.image.style.backgroundColor = hasRemoteImage ? "#0e1020" : "transparent";
     elements.image.style.backgroundPosition = hasRemoteImage ? "center" : (question.imagePosition || "0% 0%");
+    elements.questionTitle.textContent = question.title;
     elements.reveal.classList.remove("is-visible");
     elements.reveal.setAttribute("aria-hidden", "true");
     elements.cover.classList.remove("is-revealed", "is-correct", "is-wrong");
@@ -70,7 +71,6 @@ export function createGame(questions) {
     elements.score.textContent = state.score;
     elements.best.textContent = state.best;
     elements.actual.textContent = question.label;
-    elements.videoTitle.textContent = question.title;
     elements.cover.classList.add("is-revealed", isCorrect ? "is-correct" : "is-wrong");
     elements.reveal.classList.add("is-visible");
     elements.reveal.setAttribute("aria-hidden", "false");
