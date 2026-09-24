@@ -33,14 +33,17 @@ PORT=8080 npm start
 ```bash
 sudo install -d -o www-data -g www-data /opt/thumb-guessr
 sudo cp -R dist server.mjs /opt/thumb-guessr/
-sudo chown -R www-data:www-data /opt/thumb-guessr
+sudo useradd --system --home-dir /opt/thumb-guessr --shell /usr/sbin/nologin thumb-guessr
+sudo chown -R thumb-guessr:thumb-guessr /opt/thumb-guessr
 sudo cp deploy/thumb-guessr.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now thumb-guessr
 sudo systemctl status thumb-guessr
 ```
 
-服务默认监听 `127.0.0.1:8080`，适合由已有的 Nginx、Caddy 或云平台反向代理到公网。
+仓库中的 systemd 服务默认监听 `127.0.0.1:4173`，适合由已有的 Nginx、Caddy 或云平台反向代理到公网；直接执行 `PORT=8080 npm start` 时则监听 8080。
+
+如果使用本项目约定的 ECS 目录 `/app/thumb-guessr`，仓库中的 systemd 单元已经使用该目录和 `/usr/local/bin/node`；其他服务器按实际 Node 路径修改 `deploy/thumb-guessr.service` 即可。
 
 ## 构建生产版本
 

@@ -4,13 +4,14 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/opt/thumb-guessr
+User=thumb-guessr
+Group=thumb-guessr
+WorkingDirectory=/app/thumb-guessr
 Environment=NODE_ENV=production
+EnvironmentFile=-/app/thumb-guessr/.env
 Environment=HOST=127.0.0.1
-Environment=PORT=8080
-ExecStart=/usr/bin/node server.mjs
+Environment=PORT=4173
+ExecStart=/usr/local/bin/node server.mjs
 Restart=on-failure
 RestartSec=3
 
