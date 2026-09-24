@@ -28,28 +28,34 @@ export function createOssUploader(config) {
   return {
     async uploadThumbnail(videoId, sourceUrl) {
       const proxyUrl = String(config.YOUTUBE_PROXY_URL || "").trim();
-      const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
-      let response;
-      try {
-        response = await fetch(sourceUrl, {
-          headers: { Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" },
-          ...(dispatcher ? { dispatcher } : {})
-        });
-        if (!response.ok) throw new Error(`封面下载失败：HTTP ${response.status}`);
-        const contentType = (response.headers.get("content-type") || "image/jpeg").split(";", 1)[0].toLowerCase();
-        const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-        const objectKey = `${objectPrefix}/${videoId}.${extension}`;
-        const buffer = Buffer.from(await response.arrayBuffer());
-        await client.put(objectKey, buffer, {
-          headers: {
-            "Content-Type": contentType,
-            "Cache-Control": "public, max-age=31536000, immutable"
-          }
-        });
-        return joinUrl(publicBaseUrl, objectKey);
-      } finally {
-        if (dispatcher) await dispatcher.close();
+      let lastError;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
+        try {
+          const response = await fetch(sourceUrl, {
+            headers: { Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" },
+            ...(dispatcher ? { dispatcher } : {})
+          });
+          if (!response.ok) throw new Error(`封面下载失败：HTTP ${response.status}`);
+          const contentType = (response.headers.get("content-type") || "image/jpeg").split(";", 1)[0].toLowerCase();
+          const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+          const objectKey = `${objectPrefix}/${videoId}.${extension}`;
+          const buffer = Buffer.from(await response.arrayBuffer());
+          await client.put(objectKey, buffer, {
+            headers: {
+              "Content-Type": contentType,
+              "Cache-Control": "public, max-age=31536000, immutable"
+            }
+          });
+          return joinUrl(publicBaseUrl, objectKey);
+        } catch (error) {
+          lastError = error;
+          if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1200));
+        } finally {
+          if (dispatcher) await dispatcher.close();
+        }
       }
+      throw new Error(`封面上传 OSS 失败（${lastError?.cause?.code || lastError?.message || "unknown"}），已重试 3 次`);
     }
   };
 }

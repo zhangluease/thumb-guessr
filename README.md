@@ -161,6 +161,16 @@ npm run producer
 
 封面写入流程是：本地从 YouTube 下载封面 → 上传到 OSS → `videos.thumbnail_url` 保存 OSS 公网地址。AccessKey 只放在本地 `.env.local`，不要配置到 ECS。为了让浏览器 CSP 放行 OSS 图片，需要在 ECS 的 `/app/thumb-guessr/.env` 增加同一个 `OSS_PUBLIC_BASE_URL`（只填公网域名，不填 AccessKey），然后重启 `thumb-guessr.service`。
 
+### 批量发现中文视频
+
+批量任务会按多个非时政主题搜索 YouTube，要求标题包含中文字符，过滤新闻、政治、战争、外交、军事等关键词，并按视频 ID 去重。默认目标是 500 条：
+
+```bash
+npm run youtube:discover
+```
+
+可以用 `YOUTUBE_DISCOVERY_TARGET` 或 `--target=200` 调整目标数量。搜索结果会分批调用 `videos.list`，每批同步到 OSS 和 MySQL；默认搜索请求上限为 40 次，避免意外消耗过多 YouTube API 配额。
+
 ## 修改题库
 
 编辑 [`src/questions.js`](./src/questions.js)。每道题包含：
