@@ -9,8 +9,9 @@
     "build": "vite build",
     "start": "node server.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check server.mjs && node --check scripts/youtube-sync.mjs && node --check src/main.js && node --check src/game.js && node --check src/questions.js",
-    "youtube:sync": "node scripts/youtube-sync.mjs"
+    "check": "node --check server.mjs && node --check producer/server.mjs && node --check producer/youtube-sync-core.mjs && node --check producer/sync-youtube.mjs && node --check src/main.js && node --check src/game.js && node --check src/questions.js",
+    "producer": "node producer/server.mjs",
+    "youtube:sync": "node producer/sync-youtube.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.7"

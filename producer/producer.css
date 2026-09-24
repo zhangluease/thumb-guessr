@@ -1,0 +1,13 @@
+:root { color-scheme: dark; font-family: system-ui, -apple-system, sans-serif; background: #090b18; color: #f7f7fb; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: radial-gradient(circle at 80% 0, #27205e, #090b18 42rem); }
+.shell { width: min(680px, calc(100% - 28px)); margin: auto; padding: 58px 0; }
+.eyebrow { color: #d76cff; letter-spacing: .14em; font-size: .72rem; font-weight: 800; }
+h1 { margin: 10px 0; font-size: clamp(2rem, 8vw, 3.4rem); line-height: 1.05; }
+.intro { color: #afb3ca; line-height: 1.65; }
+form { display: grid; gap: 14px; margin-top: 28px; padding: 18px; border: 1px solid #30345a; border-radius: 20px; background: #14172d; }
+label { display: grid; gap: 8px; color: #c8cbe2; font-size: .9rem; font-weight: 700; }
+input { border: 1px solid #454a76; border-radius: 11px; padding: 13px; background: #0c0f21; color: white; font: inherit; }
+button { border: 0; border-radius: 11px; padding: 14px; background: linear-gradient(135deg, #ce5df7, #6e6cf5); color: white; font: inherit; font-weight: 800; }
+#status { min-height: 24px; margin: 18px 4px; color: #99e3bf; }
+.result { margin-top: 10px; padding: 13px 15px; border: 1px solid #30345a; border-radius: 12px; background: #14172d; }

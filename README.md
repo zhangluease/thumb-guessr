@@ -26,7 +26,7 @@ npm run build
 PORT=8080 npm start
 ```
 
-访问 `http://服务器IP:8080`。`server.mjs` 只使用 Node.js 内置模块，生产运行不依赖 Docker、Nginx 或第三方服务。
+访问 `http://服务器IP:8080`。生产服务使用 Node.js 和 `mysql2` 读取 MySQL，不依赖 Docker；公网部署仍建议使用已有 Nginx 反向代理。
 
 长期运行建议使用仓库自带的 systemd 服务：
 
@@ -92,7 +92,7 @@ sudo cp -R dist/. /var/www/thumb-guessr/
 ```text
 thumb-guessr/
 ├── public/assets/       # 原创封面图和 favicon
-├── src/
+├── src/                   # 消费端游戏前端
 │   ├── main.js          # 应用入口与依赖组装
 │   ├── game.js          # 游戏状态、计分和交互
 │   ├── questions.js     # 题库数据
@@ -102,17 +102,25 @@ thumb-guessr/
 │   └── thumb-guessr.service # systemd 服务配置
 ├── Dockerfile           # 可选的生产镜像
 ├── index.html           # 页面结构
-├── server.mjs           # 零依赖生产服务器
+├── server.mjs           # 消费端 HTTP 服务：静态页面 + MySQL 查询 API
+├── producer/             # 本地数据生产端，不部署到 ECS
+│   ├── index.html        # 本地生产端页面
+│   ├── server.mjs        # 本地生产端服务
+│   ├── sync-youtube.mjs  # 命令行同步入口
+│   └── youtube-sync-core.mjs
 └── package.json         # 开发、检查、构建和启动命令
 ```
 
-游戏过程状态只保存在浏览器本地：最高连续答对数使用 `localStorage`。YouTube 测试入口通过后端读取 MySQL 中已同步的视频数据。
+游戏过程状态只保存在浏览器本地：最高连续答对数使用 `localStorage`。消费端通过后端读取 MySQL 中已同步的视频数据。
 
 ## 从 YouTube 同步真实视频数据
 
-ECS 只负责网页和数据库访问，YouTube Data API 请求应在能访问 YouTube 的本地机器执行。同步脚本会拉取标题、封面、播放量和发布时间，并写入 MySQL 的 `videos` 与 `video_stat_snapshots` 表。
+这是两套明确分开的逻辑：
 
-先在项目根目录创建本地配置文件 `.env.local`（该文件不会提交）：
+- 数据生产端：本地 `producer/`，访问 YouTube Data API 并写入 MySQL。
+- 数据消费端：ECS 上的 `server.mjs` 和游戏前端，只读取 MySQL，不访问 YouTube。
+
+先将 [`producer/.env.example`](./producer/.env.example) 复制为项目根目录的 `.env.local`（该文件不会提交）：
 
 ```dotenv
 YOUTUBE_API_KEY=你的本地 YouTube Data API Key
@@ -132,7 +140,13 @@ npm run youtube:sync -- \
   'https://youtu.be/9bZkp7q19f0'
 ```
 
-同步成功后，打开 [`https://thumb.hfct.top/youtube-test.html`](https://thumb.hfct.top/youtube-test.html)，输入相同的两个链接即可验证 ECS 数据库中的封面、标题和播放量。页面不会把 API Key 暴露给浏览器。
+如果希望用页面生产数据，而不是命令行：
+
+```bash
+npm run producer
+```
+
+然后打开 `http://127.0.0.1:4174`。这个页面只在本地运行，API Key 也只存在本地进程，不会部署到 ECS。同步成功后，ECS 消费端就可以读取这些数据。
 
 ## 修改题库
 

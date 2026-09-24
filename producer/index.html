@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thumb Guessr · 本地数据生产端</title>
+    <link rel="stylesheet" href="/producer.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <p class="eyebrow">THUMB GUESSR / PRODUCER</p>
+      <h1>同步 YouTube 视频数据</h1>
+      <p class="intro">此页面只在本地运行。输入视频链接后，使用本地网络访问 YouTube，再把标题、封面和播放量写入 ECS MySQL。</p>
+      <form id="sync-form">
+        <label>视频 1<input id="video-one" placeholder="YouTube 链接或 11 位视频 ID" required /></label>
+        <label>视频 2<input id="video-two" placeholder="YouTube 链接或 11 位视频 ID" required /></label>
+        <button>拉取并写入数据库</button>
+      </form>
+      <p id="status" aria-live="polite"></p>
+      <section id="results"></section>
+    </main>
+    <script type="module" src="/producer.js"></script>
+  </body>
+</html>
