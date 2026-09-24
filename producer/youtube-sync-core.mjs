@@ -8,7 +8,9 @@ export class SyncInputError extends Error {
 }
 
 export function parseVideoId(value) {
-  const input = String(value || "").trim();
+  const rawInput = String(value || "").trim();
+  const markdownLink = /^\[[^\]]+\]\((https?:\/\/[^)]+)\)$/.exec(rawInput);
+  const input = (markdownLink ? markdownLink[1] : rawInput).trim();
   if (/^[A-Za-z0-9_-]{11}$/.test(input)) return input;
 
   let url;
@@ -62,7 +64,13 @@ export async function syncVideos(inputs, config = process.env) {
   apiUrl.searchParams.set("id", ids.join(","));
   apiUrl.searchParams.set("key", apiKey);
 
-  const response = await fetch(apiUrl, { headers: { Accept: "application/json" } });
+  let response;
+  try {
+    response = await fetch(apiUrl, { headers: { Accept: "application/json" } });
+  } catch (error) {
+    const cause = error?.cause?.code || error?.cause?.message || error.message;
+    throw new Error(`无法连接 YouTube Data API（${cause}）。请确认本机网络/VPN 可以访问 www.googleapis.com；命令参数请使用纯 URL 或视频 ID。`);
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const reason = payload?.error?.errors?.[0]?.reason ? ` (${payload.error.errors[0].reason})` : "";

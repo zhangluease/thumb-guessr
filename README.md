@@ -140,6 +140,8 @@ npm run youtube:sync -- \
   'https://youtu.be/9bZkp7q19f0'
 ```
 
+也可以直接传 11 位视频 ID，例如 `npm run youtube:sync -- YWqnPoIE6_w`。不要把 Markdown 展示格式（`[标题](URL)`）当作参数；脚本也会尝试自动识别这种格式。
+
 如果希望用页面生产数据，而不是命令行：
 
 ```bash
