@@ -55,7 +55,11 @@ button { font: inherit; }
 .result span { color: var(--muted); font-size: .75rem; }
 .next-button { flex: none; min-height: 44px; padding: 0 14px; border: 0; border-radius: 13px; color: #100d21; background: var(--cyan); cursor: pointer; font-weight: 900; }
 .next-button span { color: inherit; font-size: 1.05rem; }
-footer { padding-top: 17px; text-align: center; color: #777b98; font-size: .73rem; }
+.site-footer { padding-top: 17px; text-align: center; color: #777b98; font-size: .73rem; }
+.site-footer p { margin: 0; }
+.footer-tagline { color: #777b98; }
+.disclaimer { max-width: 510px; margin: 9px auto 0 !important; color: #686d89; font-size: .68rem; line-height: 1.6; }
+.disclaimer a { color: #aaa0ff; text-decoration: underline; text-underline-offset: 2px; }
 @keyframes shine { 20%,100% { transform: translateX(130%); } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 @media (min-width: 600px) { .game-shell { padding-right: 28px; padding-left: 28px; } .cover-card { border-radius: 32px; } }
