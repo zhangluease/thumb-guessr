@@ -26,6 +26,7 @@ button { font: inherit; }
 .separator { opacity: .5; padding: 0 3px; }
 .best strong { color: #ffc75a; font-weight: 700; }
 .cover-card { position: relative; aspect-ratio: 1.25 / 1; overflow: hidden; border: 1px solid #ffffff20; border-radius: 28px; background: #1f233c; box-shadow: 0 25px 60px #0008; isolation: isolate; transition: transform .32s ease; }
+.cover-card.is-dynamic { aspect-ratio: 16 / 9; }
 .cover-card.is-correct { box-shadow: 0 25px 60px #0008, 0 0 0 2px #4ef0d188; }
 .cover-card.is-wrong { box-shadow: 0 25px 60px #0008, 0 0 0 2px #ff639488; }
 .cover-image { position: absolute; inset: 0; background-image: url('/assets/cover-deck.png'); background-repeat: no-repeat; background-size: 300% 200%; transform: scale(1.01); transition: transform .7s cubic-bezier(.2,.7,.2,1), filter .4s ease; }
