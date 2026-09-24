@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import { ProxyAgent } from "undici";
+import { createOssUploader } from "./oss.mjs";
 
 export class SyncInputError extends Error {
   constructor(message) {
@@ -83,6 +84,7 @@ export async function syncVideos(inputs, config = process.env) {
     throw new Error(`${payload?.error?.message || "YouTube Data API 请求失败"}${reason}`);
   }
 
+  const oss = createOssUploader(config);
   const db = await mysql.createConnection({
     host: required(config, "DB_HOST"),
     port: Number(config.DB_PORT || 3306),
@@ -91,7 +93,6 @@ export async function syncVideos(inputs, config = process.env) {
     password: required(config, "DB_PASSWORD"),
     charset: "utf8mb4"
   });
-
   const found = new Map();
   let inTransaction = false;
   try {
@@ -105,6 +106,8 @@ export async function syncVideos(inputs, config = process.env) {
         || snippet.thumbnails?.medium?.url
         || snippet.thumbnails?.default?.url;
       if (!thumbnail || !snippet.title || statistics.viewCount === undefined) continue;
+
+      const storedThumbnail = oss ? await oss.uploadThumbnail(item.id, thumbnail) : thumbnail;
 
       const [result] = await db.execute(
         `INSERT INTO videos
@@ -126,7 +129,7 @@ export async function syncVideos(inputs, config = process.env) {
           snippet.channelId || null,
           snippet.channelTitle || null,
           snippet.title,
-          thumbnail,
+          storedThumbnail,
           parseDuration(item.contentDetails?.duration),
           snippet.publishedAt ? new Date(snippet.publishedAt) : null,
           String(statistics.viewCount)
@@ -147,7 +150,7 @@ export async function syncVideos(inputs, config = process.env) {
         title: snippet.title,
         channelTitle: snippet.channelTitle || "",
         publishedAt: snippet.publishedAt || null,
-        thumbnail,
+        thumbnail: storedThumbnail,
         viewCount: String(statistics.viewCount)
       });
     }

@@ -130,6 +130,14 @@ DB_PORT=8736
 DB_NAME=thumb_guessr
 DB_USER=root
 DB_PASSWORD=你的数据库密码
+OSS_ENABLED=true
+OSS_REGION=oss-cn-hangzhou
+OSS_BUCKET=你的 OSS Bucket
+OSS_ACCESS_KEY_ID=你的 AccessKey ID
+OSS_ACCESS_KEY_SECRET=你的 AccessKey Secret
+OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+OSS_PUBLIC_BASE_URL=https://你的 OSS 公网域名
+OSS_OBJECT_PREFIX=thumb-guessr/covers
 ```
 
 然后传入一个或多个 YouTube 视频链接/ID：
@@ -150,6 +158,8 @@ npm run producer
 ```
 
 然后打开 `http://127.0.0.1:4174`。这个页面只在本地运行，API Key 也只存在本地进程，不会部署到 ECS。同步成功后，ECS 消费端就可以读取这些数据。
+
+封面写入流程是：本地从 YouTube 下载封面 → 上传到 OSS → `videos.thumbnail_url` 保存 OSS 公网地址。AccessKey 只放在本地 `.env.local`，不要配置到 ECS。为了让浏览器 CSP 放行 OSS 图片，需要在 ECS 的 `/app/thumb-guessr/.env` 增加同一个 `OSS_PUBLIC_BASE_URL`（只填公网域名，不填 AccessKey），然后重启 `thumb-guessr.service`。
 
 ## 修改题库
 

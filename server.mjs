@@ -26,7 +26,14 @@ const contentTypes = {
 function applyHeaders(response, filePath) {
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.setHeader("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https://i.ytimg.com https://yt3.ggpht.com; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+  let ossOrigin = "";
+  try {
+    ossOrigin = process.env.OSS_PUBLIC_BASE_URL ? new URL(process.env.OSS_PUBLIC_BASE_URL).origin : "";
+  } catch {
+    ossOrigin = "";
+  }
+  const imageSources = ["'self'", "data:", "https://i.ytimg.com", "https://yt3.ggpht.com", ossOrigin].filter(Boolean).join(" ");
+  response.setHeader("Content-Security-Policy", `default-src 'self'; img-src ${imageSources}; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`);
   response.setHeader("Cache-Control", filePath.endsWith("index.html") ? "no-cache" : "public, max-age=3600");
 }
 
