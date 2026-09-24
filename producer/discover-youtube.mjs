@@ -1,5 +1,6 @@
 import { loadLocalEnv } from "./env.mjs";
 import { syncVideos } from "./youtube-sync-core.mjs";
+import mysql from "mysql2/promise";
 import { ProxyAgent } from "undici";
 
 loadLocalEnv();
@@ -56,7 +57,26 @@ function isAllowed(snippet) {
     && !POLITICAL_PATTERN.test(`${title} ${channelTitle}`);
 }
 
-async function collectCandidates(apiKey) {
+async function loadExistingVideoIds() {
+  const db = await mysql.createConnection({
+    host: required("DB_HOST"),
+    port: Number(process.env.DB_PORT || 3306),
+    database: required("DB_NAME"),
+    user: required("DB_USER"),
+    password: required("DB_PASSWORD"),
+    charset: "utf8mb4"
+  });
+  try {
+    const [rows] = await db.query(
+      "SELECT platform_video_id FROM videos WHERE platform = 'youtube' AND enabled = 1"
+    );
+    return new Set(rows.map((row) => row.platform_video_id));
+  } finally {
+    await db.end();
+  }
+}
+
+async function collectCandidates(apiKey, existingIds) {
   const candidates = new Map();
   let requests = 0;
   for (const query of QUERIES) {
@@ -77,7 +97,7 @@ async function collectCandidates(apiKey) {
       const payload = await youtubeJson(url);
       requests += 1;
       for (const item of payload.items || []) {
-        if (!item.id?.videoId || !isAllowed(item.snippet)) continue;
+        if (!item.id?.videoId || existingIds.has(item.id.videoId) || !isAllowed(item.snippet)) continue;
         candidates.set(item.id.videoId, {
           id: item.id.videoId,
           title: item.snippet.title,
@@ -112,7 +132,9 @@ try {
   if (!Number.isInteger(TARGET) || TARGET < 1 || TARGET > 5000) throw new Error("YOUTUBE_DISCOVERY_TARGET 必须是 1-5000 的整数");
   const apiKey = required("YOUTUBE_API_KEY");
   console.log(`开始抓取：目标 ${TARGET} 条，中文标题，排除时政类，搜索请求上限 ${SEARCH_LIMIT}（每次最多 50 条）`);
-  const { candidates, requests } = await collectCandidates(apiKey);
+  const existingIds = await loadExistingVideoIds();
+  console.log(`已排除数据库中已有视频：${existingIds.size} 条`);
+  const { candidates, requests } = await collectCandidates(apiKey, existingIds);
   console.log(`候选收集完成：${candidates.length} 条，消耗搜索请求 ${requests} 次`);
   const synced = await syncCandidates(candidates, apiKey);
   if (synced < TARGET) throw new Error(`候选不足或视频不可用，仅写入 ${synced}/${TARGET} 条`);
