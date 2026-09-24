@@ -1,6 +1,7 @@
 import "./styles.css";
 import { createGame } from "./game.js";
 import { questions } from "./questions.js";
+import { getQuestionId, readRecentQuestionIds } from "./question-history.js";
 
 function formatViewCount(value) {
   const count = Number(value || 0);
@@ -17,6 +18,7 @@ function buildChoices(value) {
 
 function mapVideoToQuestion(video) {
   return {
+    id: video.id,
     title: video.title,
     views: Number(video.viewCount),
     label: formatViewCount(video.viewCount),
@@ -26,17 +28,41 @@ function mapVideoToQuestion(video) {
   };
 }
 
-async function loadQuestions() {
+async function fetchRemoteQuestions(excludeIds = []) {
   try {
-    const response = await fetch("/api/quiz", { headers: { Accept: "application/json" } });
+    const ids = excludeIds
+      .filter((id) => /^[A-Za-z0-9_-]{11}$/.test(id))
+      .slice(-200);
+    const url = new URL("/api/quiz", window.location.origin);
+    if (ids.length) url.searchParams.set("exclude", ids.join(","));
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`题库请求失败：${response.status}`);
     const payload = await response.json();
-    const remoteQuestions = (payload.questions || []).map(mapVideoToQuestion);
-    if (remoteQuestions.length) return remoteQuestions;
+    return (payload.questions || []).map(mapVideoToQuestion);
   } catch (error) {
     console.warn(error);
+    return [];
+  }
+}
+
+async function loadQuestions() {
+  const recentIds = readRecentQuestionIds();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const remoteQuestions = await fetchRemoteQuestions([...recentIds]);
+    const freshQuestions = remoteQuestions.filter((question) => !recentIds.has(getQuestionId(question)));
+    if (freshQuestions.length) return freshQuestions;
   }
   return questions;
 }
 
-loadQuestions().then(createGame);
+async function loadMoreQuestions(excludeIds) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const remoteQuestions = await fetchRemoteQuestions(excludeIds);
+    const excluded = new Set(excludeIds);
+    const freshQuestions = remoteQuestions.filter((question) => !excluded.has(getQuestionId(question)));
+    if (freshQuestions.length) return freshQuestions;
+  }
+  return [];
+}
+
+loadQuestions().then((initialQuestions) => createGame(initialQuestions, { loadMoreQuestions }));

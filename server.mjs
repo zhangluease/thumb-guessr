@@ -155,7 +155,12 @@ async function handleYouTubeVideos(url, response) {
   });
 }
 
-async function handleQuizQuestions(response) {
+async function handleQuizQuestions(response, requestUrl) {
+  const excludedIds = [...new Set(String(requestUrl?.searchParams.get("exclude") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => /^[A-Za-z0-9_-]{11}$/.test(value)))].slice(0, 200);
+  const exclusionClause = excludedIds.length ? "AND platform_video_id NOT IN (?)" : "";
   let rows;
   try {
     [rows] = await getDbPool().query(
@@ -168,8 +173,10 @@ async function handleQuizQuestions(response) {
          FROM videos
         WHERE platform = 'youtube'
           AND enabled = 1
+          ${exclusionClause}
         ORDER BY RAND()
-        LIMIT 50`
+        LIMIT 50`,
+      excludedIds.length ? [excludedIds] : []
     );
   } catch (error) {
     console.error(`题库数据库查询失败: ${error.message}`);
@@ -238,7 +245,7 @@ const server = createServer((request, response) => {
       response.end();
       return;
     }
-    handleQuizQuestions(response).catch(() => {
+    handleQuizQuestions(response, requestUrl).catch(() => {
       if (!response.headersSent) sendJson(response, 500, { error: "题库处理失败" });
     });
     return;
