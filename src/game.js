@@ -25,7 +25,10 @@ export function createGame(questions) {
     const question = questions[state.index % questions.length];
     state.answered = false;
     elements.round.textContent = String(state.index + 1).padStart(2, "0");
-    elements.image.style.backgroundPosition = question.imagePosition;
+    elements.image.style.backgroundImage = question.imageUrl
+      ? `url("${question.imageUrl.replaceAll('"', "%22")}")`
+      : "url('/assets/cover-deck.png')";
+    elements.image.style.backgroundPosition = question.imagePosition || "0% 0%";
     elements.reveal.classList.remove("is-visible");
     elements.reveal.setAttribute("aria-hidden", "true");
     elements.cover.classList.remove("is-revealed", "is-correct", "is-wrong");

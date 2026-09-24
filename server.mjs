@@ -74,6 +74,34 @@ function parseYouTubeIds(url) {
   return [...new Set(values)];
 }
 
+function getDbPool() {
+  if (!dbPool) {
+    dbPool = mysql.createPool({
+      host: process.env.DB_HOST || "127.0.0.1",
+      port: Number(process.env.DB_PORT || 3306),
+      database: process.env.DB_NAME || "thumb_guessr",
+      user: process.env.DB_USER || "thumb_guessr",
+      password: process.env.DB_PASSWORD || "",
+      waitForConnections: true,
+      connectionLimit: 4,
+      queueLimit: 0,
+      charset: "utf8mb4"
+    });
+  }
+  return dbPool;
+}
+
+function formatQuestionRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    channelTitle: row.channelTitle,
+    publishedAt: row.publishedAt ? new Date(row.publishedAt).toISOString() : null,
+    thumbnail: row.thumbnail,
+    viewCount: String(row.viewCount)
+  };
+}
+
 async function handleYouTubeVideos(url, response) {
   const inputs = parseYouTubeIds(url);
   if (!inputs.length || inputs.length > 10) {
@@ -90,23 +118,9 @@ async function handleYouTubeVideos(url, response) {
 
   const ids = [...new Set(parsedIds)];
 
-  if (!dbPool) {
-    dbPool = mysql.createPool({
-      host: process.env.DB_HOST || "127.0.0.1",
-      port: Number(process.env.DB_PORT || 3306),
-      database: process.env.DB_NAME || "thumb_guessr",
-      user: process.env.DB_USER || "thumb_guessr",
-      password: process.env.DB_PASSWORD || "",
-      waitForConnections: true,
-      connectionLimit: 4,
-      queueLimit: 0,
-      charset: "utf8mb4"
-    });
-  }
-
   let rows;
   try {
-    [rows] = await dbPool.query(
+    [rows] = await getDbPool().query(
       `SELECT platform_video_id AS id,
               title,
               channel_title AS channelTitle,
@@ -125,16 +139,40 @@ async function handleYouTubeVideos(url, response) {
     return;
   }
 
-  const videos = new Map(rows.map((row) => [row.id, {
-    ...row,
-    viewCount: String(row.viewCount),
-    publishedAt: row.publishedAt ? new Date(row.publishedAt).toISOString() : null
-  }]));
+  const videos = new Map(rows.map((row) => [row.id, formatQuestionRow(row)]));
 
   sendJson(response, 200, {
     requested: ids.length,
     found: videos.size,
     videos: ids.map((id) => videos.get(id) || { id, unavailable: true })
+  });
+}
+
+async function handleQuizQuestions(response) {
+  let rows;
+  try {
+    [rows] = await getDbPool().query(
+      `SELECT platform_video_id AS id,
+              title,
+              channel_title AS channelTitle,
+              published_at AS publishedAt,
+              thumbnail_url AS thumbnail,
+              view_count AS viewCount
+         FROM videos
+        WHERE platform = 'youtube'
+          AND enabled = 1
+        ORDER BY RAND()
+        LIMIT 50`
+    );
+  } catch (error) {
+    console.error(`题库数据库查询失败: ${error.message}`);
+    sendJson(response, 503, { error: "数据库暂不可用，请先确认 ECS 的 MySQL 配置" });
+    return;
+  }
+
+  sendJson(response, 200, {
+    source: "mysql",
+    questions: rows.map(formatQuestionRow)
   });
 }
 
@@ -183,6 +221,18 @@ const server = createServer((request, response) => {
     }
     handleYouTubeVideos(requestUrl, response).catch(() => {
       if (!response.headersSent) sendJson(response, 500, { error: "YouTube 数据处理失败" });
+    });
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/quiz") {
+    if (request.method === "HEAD") {
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end();
+      return;
+    }
+    handleQuizQuestions(response).catch(() => {
+      if (!response.headersSent) sendJson(response, 500, { error: "题库处理失败" });
     });
     return;
   }
