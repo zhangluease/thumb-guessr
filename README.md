@@ -95,6 +95,7 @@ thumb-guessr/
 ├── src/                   # 消费端游戏前端
 │   ├── main.js          # 应用入口与依赖组装
 │   ├── game.js          # 游戏状态、计分和交互
+│   ├── question-history.js # 最近 200 题去重记录
 │   ├── questions.js     # 题库数据
 │   └── styles.css       # 响应式样式
 ├── deploy/
@@ -107,11 +108,12 @@ thumb-guessr/
 │   ├── index.html        # 本地生产端页面
 │   ├── server.mjs        # 本地生产端服务
 │   ├── sync-youtube.mjs  # 命令行同步入口
+│   ├── discover-youtube.mjs # 批量发现中文、非时政视频
 │   └── youtube-sync-core.mjs
 └── package.json         # 开发、检查、构建和启动命令
 ```
 
-游戏过程状态只保存在浏览器本地：最高连续答对数使用 `localStorage`。消费端通过后端读取 MySQL 中已同步的视频数据。
+游戏过程状态只保存在浏览器本地：最高连续答对数和最近 200 个已展示的视频 ID 使用 `localStorage`，用于减少重复题目。消费端通过后端读取 MySQL 中已同步的视频数据。
 
 ## 从 YouTube 同步真实视频数据
 
@@ -124,7 +126,7 @@ thumb-guessr/
 
 ```dotenv
 YOUTUBE_API_KEY=你的本地 YouTube Data API Key
-YOUTUBE_PROXY_URL=http://127.0.0.1:7890  # 如果本机需要代理访问 Google，可填写；否则留空
+YOUTUBE_PROXY_URL=http://127.0.0.1:7897  # 当前本机代理端口；如果环境不同请按实际端口修改
 DB_HOST=124.72.50.154
 DB_PORT=8736
 DB_NAME=thumb_guessr
@@ -139,6 +141,8 @@ OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
 OSS_PUBLIC_BASE_URL=https://你的 OSS 公网域名
 OSS_OBJECT_PREFIX=thumb-guessr/covers
 ```
+
+上面的数据库地址、端口、库名和用户对应当前开发数据库；`DB_PASSWORD`、`YOUTUBE_API_KEY`、OSS AccessKey 和公网域名仍需由部署者自行填写，且只保存在本地 `.env.local` 或服务器真实配置文件中，不能提交到 Git。
 
 然后传入一个或多个 YouTube 视频链接/ID：
 
